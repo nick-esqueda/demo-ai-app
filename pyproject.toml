@@ -1,0 +1,43 @@
+[project]
+name = "docs-qa"
+version = "0.1.0"
+description = "RAG question answering over Python library docs (FastAPI first), built to learn AI engineering."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=1.40",
+    "anthropic>=1.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic-settings>=2.4",
+    "psycopg[binary,pool]>=3.2",
+    "pgvector>=0.3",
+    "numpy>=1.26",
+    "sentence-transformers>=3.0",
+]
+
+[project.scripts]
+docs-qa-ingest = "docs_qa.ingest:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "httpx2>=2.0",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/docs_qa"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
