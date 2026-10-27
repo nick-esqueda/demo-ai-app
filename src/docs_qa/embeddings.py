@@ -4,9 +4,14 @@ Queries and documents are embedded through separate methods because many retriev
 models (BGE, Voyage, E5) encode them differently.
 """
 
+import os
 from typing import Protocol
 
 from docs_qa.config import Settings
+
+# Hugging Face tokenizers spin up their own thread pool, which is known to deadlock when mixed
+# with other threads or forked processes (e.g. uvicorn --reload). Turn it off unless set.
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 
 class Embedder(Protocol):
@@ -24,11 +29,11 @@ class SentenceTransformerEmbedder:
     # BGE models expect this prefix on queries (not on documents) for retrieval.
     BGE_QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 
-    def __init__(self, model_name: str, batch_size: int = 32):
+    def __init__(self, model_name: str, device: str | None = None, batch_size: int = 32):
         # Imported here so the rest of the app (and the tests) don't need torch loaded.
         from sentence_transformers import SentenceTransformer
 
-        self._model = SentenceTransformer(model_name)
+        self._model = SentenceTransformer(model_name, device=device)
         self._batch_size = batch_size
         self._query_prefix = self.BGE_QUERY_PREFIX if "bge" in model_name.lower() else ""
 
@@ -52,5 +57,7 @@ class SentenceTransformerEmbedder:
 def get_embedder(settings: Settings) -> Embedder:
     """Build the embedder named in settings. Add new providers here."""
     if settings.embedding_provider == "sentence-transformers":
-        return SentenceTransformerEmbedder(settings.embedding_model)
+        return SentenceTransformerEmbedder(
+            settings.embedding_model, device=settings.embedding_device
+        )
     raise ValueError(f"Unknown embedding provider: {settings.embedding_provider!r}")

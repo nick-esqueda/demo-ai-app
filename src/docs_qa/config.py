@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     llm_model: str = "gemini-flash-latest"
     # Upper bound on the answer length. Thinking models count their reasoning against it too.
     llm_max_tokens: int = 8192
+    # How long to wait for each LLM attempt before giving up (the SDKs default to 10 minutes).
+    # Failed or timed-out calls are retried once.
+    llm_timeout_seconds: float = 30.0
 
     # Only used when llm_provider is "anthropic".
     anthropic_api_key: SecretStr | None = None
@@ -31,6 +34,12 @@ class Settings(BaseSettings):
     # Embeddings. Changing the model usually changes the vector size, so re-ingest after.
     embedding_provider: str = "sentence-transformers"
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+    # "cpu", "mps" (Apple GPU) or "cuda". CPU is plenty fast for a small model, and avoids
+    # PyTorch's Apple GPU backend, which can hang when called from FastAPI's worker threads.
+    embedding_device: str = "cpu"
+
+    # How long to wait for a database connection.
+    db_timeout_seconds: float = 10.0
 
     # Retrieval and chunking.
     top_k: int = 5

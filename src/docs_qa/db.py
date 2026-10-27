@@ -53,9 +53,25 @@ def connect(database_url: str) -> psycopg.Connection:
     return conn
 
 
-def create_pool(database_url: str) -> ConnectionPool:
-    """Connection pool for the API. Expects the schema to exist (run ingestion first)."""
-    return ConnectionPool(database_url, configure=_configure, open=True)
+def create_pool(database_url: str, timeout: float = 10.0) -> ConnectionPool:
+    """Connection pool for the API. Expects the schema to exist (run ingestion first).
+
+    Waits up to `timeout` seconds for the first connection, so a database that is down or
+    misconfigured fails at startup instead of on the first request.
+    """
+    pool = ConnectionPool(
+        database_url,
+        configure=_configure,
+        kwargs={"connect_timeout": max(1, int(timeout))},
+        timeout=timeout,  # how long a request waits for a free connection
+        open=True,
+    )
+    try:
+        pool.wait(timeout=timeout)
+    except Exception:
+        pool.close()
+        raise
+    return pool
 
 
 def create_schema(conn: psycopg.Connection, dimension: int) -> None:

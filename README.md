@@ -87,6 +87,27 @@ current model list. Free tiers have per-minute and per-day limits; hitting one r
 from `/ask`. Also note that Google may use prompts sent on the Gemini free tier to improve its
 products, which is fine for public docs but worth knowing.
 
+## Troubleshooting
+
+The server logs each request when it arrives and how long each step took:
+
+```
+INFO docs_qa.api: -> POST /ask
+INFO docs_qa.api: Retrieved 5 chunks in 18 ms
+INFO docs_qa.api: LLM answered in 2140 ms (gemini-..., 1834 in / 212 out tokens)
+INFO docs_qa.api: <- POST /ask 200 in 2165 ms
+```
+
+- **503 "The model is overloaded"**: the free Gemini model is busy. It usually passes within
+  minutes. Otherwise try another model (`LLM_MODEL=gemini-flash-lite-latest`) or provider
+  (Groq, Ollama).
+- **429**: you hit the free tier's per-minute or per-day limit.
+- **Startup fails with `PoolTimeout`**: Postgres isn't reachable. Check `docker compose ps`
+  and `DATABASE_URL`.
+- **Startup fails on `relation "chunks" does not exist`**: run ingestion first.
+- **A request hangs after `-> POST /ask` with no `Retrieved` line**: the embedding step is
+  stuck. Make sure `EMBEDDING_DEVICE=cpu`.
+
 ## Tests
 
 ```bash

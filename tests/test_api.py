@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from docs_qa.api import app, get_generator, get_retriever
 from docs_qa.generation import Answer, Usage
+from docs_qa.llm import LLMUnavailableError
 
 
 class FakeRetriever:
@@ -57,3 +58,16 @@ def test_ask_uses_default_top_k(chunks):
 def test_ask_validates_input(chunks):
     response = make_client(FakeRetriever(chunks)).post("/ask", json={"question": ""})
     assert response.status_code == 422
+
+
+def test_ask_returns_503_when_the_llm_is_overloaded(chunks):
+    class OverloadedGenerator:
+        def generate(self, question, chunks):
+            raise LLMUnavailableError("The model is overloaded. (status 503)")
+
+    client = make_client(FakeRetriever(chunks))
+    app.dependency_overrides[get_generator] = OverloadedGenerator
+    response = client.post("/ask", json={"question": "Path params?"})
+
+    assert response.status_code == 503
+    assert "The model is overloaded" in response.json()["detail"]

@@ -11,6 +11,7 @@ from docs_qa.config import Settings
 from docs_qa.llm import (
     AnthropicLLM,
     LLMRateLimitError,
+    LLMUnavailableError,
     OpenAICompatibleLLM,
     get_llm,
 )
@@ -51,6 +52,29 @@ def test_openai_compatible_maps_rate_limits():
 
     with pytest.raises(LLMRateLimitError):
         llm.complete("s", "u")
+
+
+def test_openai_compatible_surfaces_gemini_overloaded_message():
+    """Gemini's OpenAI-compatible endpoint wraps its error JSON in a list."""
+    llm = OpenAICompatibleLLM("https://example.test/v1", "key", model="m", max_tokens=100)
+    llm._client = MagicMock()
+    request = httpx.Request("POST", "https://example.test/v1/chat/completions")
+    body = [
+        {"error": {"code": 503, "message": "The model is overloaded.", "status": "UNAVAILABLE"}}
+    ]
+    llm._client.chat.completions.create.side_effect = openai.InternalServerError(
+        "Error code: 503", response=httpx.Response(503, request=request), body=body
+    )
+
+    with pytest.raises(LLMUnavailableError, match="The model is overloaded"):
+        llm.complete("s", "u")
+
+
+def test_clients_use_a_short_timeout_and_one_retry():
+    llm = OpenAICompatibleLLM("https://example.test/v1", "key", model="m", max_tokens=100)
+    assert (llm._client.timeout, llm._client.max_retries) == (30.0, 1)
+    claude = AnthropicLLM("key", model="m", effort="low", max_tokens=100, timeout=12)
+    assert (claude._client.timeout, claude._client.max_retries) == (12, 1)
 
 
 def test_anthropic_request_and_response():
