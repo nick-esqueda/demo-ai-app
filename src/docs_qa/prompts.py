@@ -16,12 +16,16 @@ it, and mention anything related that the sources do cover.
 """
 
 
+def format_source(number: int, chunk: RetrievedChunk) -> str:
+    """Wrap one chunk in a numbered <source> tag."""
+    opening_tag = f'<source id="{number}" title="{chunk.heading_path}" url="{chunk.url}">'
+    return f"{opening_tag}\n{chunk.content}\n</source>"
+
+
 def build_user_message(question: str, chunks: list[RetrievedChunk]) -> str:
     """Number the sources from 1 and wrap them in XML tags, followed by the question."""
-    sources = "\n".join(
-        f'<source id="{number}" title="{chunk.heading_path}" url="{chunk.url}">\n'
-        f"{chunk.content}\n"
-        "</source>"
-        for number, chunk in enumerate(chunks, start=1)
-    )
+    formatted_sources = [
+        format_source(number, chunk) for number, chunk in enumerate(chunks, start=1)
+    ]
+    sources = "\n".join(formatted_sources)
     return f"<sources>\n{sources}\n</sources>\n\n<question>{question}</question>"

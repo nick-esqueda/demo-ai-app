@@ -28,23 +28,29 @@ class RetrievedChunk:
     score: float
 
 
+def build_retrieved_chunk(row: tuple) -> RetrievedChunk:
+    """Turn one row of SEARCH_SQL's result into a RetrievedChunk."""
+    chunk_id, source_path, heading_path, url, content, distance = row
+    return RetrievedChunk(
+        id=chunk_id,
+        source_path=source_path,
+        heading_path=heading_path,
+        url=url,
+        content=content,
+        score=1 - distance,
+    )
+
+
 class Retriever:
     def __init__(self, pool: ConnectionPool, embedder: Embedder):
         self._pool = pool
         self._embedder = embedder
 
     def search(self, question: str, k: int) -> list[RetrievedChunk]:
-        query = np.array(self._embedder.embed_query(question), dtype=np.float32)
+        query_vector = self._embedder.embed_query(question)
+        query = np.array(query_vector, dtype=np.float32)
+
         with self._pool.connection() as conn:
             rows = conn.execute(SEARCH_SQL, {"query": query, "k": k}).fetchall()
-        return [
-            RetrievedChunk(
-                id=id_,
-                source_path=source_path,
-                heading_path=heading_path,
-                url=url,
-                content=content,
-                score=1 - distance,
-            )
-            for id_, source_path, heading_path, url, content, distance in rows
-        ]
+
+        return [build_retrieved_chunk(row) for row in rows]

@@ -13,12 +13,14 @@ class FakeLLM:
         return self.completion
 
 
-def completion(text: str, refused: bool = False) -> Completion:
-    return Completion(text=text, input_tokens=1200, output_tokens=80, model="fake", refused=refused)
+def build_completion(text: str, is_refused: bool = False) -> Completion:
+    return Completion(
+        text=text, input_tokens=1200, output_tokens=80, model="fake", is_refused=is_refused
+    )
 
 
 def test_generate_builds_prompt_and_parses_answer(chunks):
-    llm = FakeLLM(completion("Use braces in the path [1]. See also [2][1]."))
+    llm = FakeLLM(build_completion("Use braces in the path [1]. See also [2][1]."))
 
     answer = AnswerGenerator(llm).generate("How do I declare a path parameter?", chunks)
 
@@ -29,23 +31,25 @@ def test_generate_builds_prompt_and_parses_answer(chunks):
     assert "<question>How do I declare a path parameter?</question>" in user
 
     assert answer.text == "Use braces in the path [1]. See also [2][1]."
-    assert answer.cited == [1, 2]
+    assert answer.cited_numbers == [1, 2]
     assert (answer.usage.input_tokens, answer.usage.output_tokens) == (1200, 80)
     assert answer.model == "fake"
 
 
 def test_no_chunks_skips_the_llm():
-    llm = FakeLLM(completion("unused"))
+    llm = FakeLLM(build_completion("unused"))
     answer = AnswerGenerator(llm).generate("anything", [])
     assert answer.text == NO_SOURCES_ANSWER
     assert llm.calls == []
 
 
 def test_refusal(chunks):
-    answer = AnswerGenerator(FakeLLM(completion("", refused=True))).generate("something", chunks)
+    answer = AnswerGenerator(FakeLLM(build_completion("", is_refused=True))).generate(
+        "something", chunks
+    )
     assert answer.text == REFUSAL_ANSWER
-    assert answer.cited == []
+    assert answer.cited_numbers == []
 
 
 def test_extract_citations_ignores_out_of_range_numbers():
-    assert extract_citations("A [3] B [1] C [9] D [0] E [1]", num_sources=3) == [3, 1]
+    assert extract_citations("A [3] B [1] C [9] D [0] E [1]", source_count=3) == [3, 1]

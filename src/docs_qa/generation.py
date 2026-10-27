@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass, field
 
-from docs_qa.llm import LLMClient
+from docs_qa.llm import Completion, LLMClient
 from docs_qa.prompts import SYSTEM_PROMPT, build_user_message
 from docs_qa.retrieval import RetrievedChunk
 
@@ -26,19 +26,35 @@ class Usage:
 class Answer:
     text: str
     # Source numbers (1-based, matching the prompt) that the answer cites, in order of first use.
-    cited: list[int] = field(default_factory=list)
+    cited_numbers: list[int] = field(default_factory=list)
     usage: Usage = field(default_factory=Usage)
     model: str | None = None
 
 
-def extract_citations(text: str, num_sources: int) -> list[int]:
+def extract_citations(text: str, source_count: int) -> list[int]:
     """Find [n] markers that point at a real source, without duplicates."""
-    cited: list[int] = []
+    cited_numbers: list[int] = []
+
     for match in CITATION_RE.finditer(text):
         number = int(match.group(1))
-        if 1 <= number <= num_sources and number not in cited:
-            cited.append(number)
-    return cited
+        is_real_source = 1 <= number <= source_count
+        if is_real_source and number not in cited_numbers:
+            cited_numbers.append(number)
+
+    return cited_numbers
+
+
+def build_answer(completion: Completion, source_count: int) -> Answer:
+    usage = Usage(completion.input_tokens, completion.output_tokens)
+    if completion.is_refused:
+        return Answer(text=REFUSAL_ANSWER, usage=usage, model=completion.model)
+
+    return Answer(
+        text=completion.text,
+        cited_numbers=extract_citations(completion.text, source_count),
+        usage=usage,
+        model=completion.model,
+    )
 
 
 class AnswerGenerator:
@@ -49,14 +65,6 @@ class AnswerGenerator:
         if not chunks:
             return Answer(text=NO_SOURCES_ANSWER)
 
-        completion = self._llm.complete(SYSTEM_PROMPT, build_user_message(question, chunks))
-        usage = Usage(completion.input_tokens, completion.output_tokens)
-
-        if completion.refused:
-            return Answer(text=REFUSAL_ANSWER, usage=usage, model=completion.model)
-        return Answer(
-            text=completion.text,
-            cited=extract_citations(completion.text, len(chunks)),
-            usage=usage,
-            model=completion.model,
-        )
+        user_message = build_user_message(question, chunks)
+        completion = self._llm.complete(SYSTEM_PROMPT, user_message)
+        return build_answer(completion, source_count=len(chunks))

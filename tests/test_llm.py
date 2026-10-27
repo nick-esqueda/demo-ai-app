@@ -18,7 +18,9 @@ from docs_qa.llm import (
 
 
 def test_openai_compatible_request_and_response():
-    llm = OpenAICompatibleLLM("https://example.test/v1", "key", model="gemini-x", max_tokens=100)
+    llm = OpenAICompatibleLLM(
+        "https://example.test/v1", "key", model="gemini-x", max_tokens=100, timeout=30
+    )
     llm._client = MagicMock()
     llm._client.chat.completions.create.return_value = SimpleNamespace(
         choices=[
@@ -39,11 +41,13 @@ def test_openai_compatible_request_and_response():
     ]
     assert (result.text, result.input_tokens, result.output_tokens) == ("Answer [1]", 300, 12)
     assert result.model == "gemini-x-001"
-    assert not result.refused
+    assert not result.is_refused
 
 
 def test_openai_compatible_maps_rate_limits():
-    llm = OpenAICompatibleLLM("https://example.test/v1", None, model="m", max_tokens=100)
+    llm = OpenAICompatibleLLM(
+        "https://example.test/v1", None, model="m", max_tokens=100, timeout=30
+    )
     llm._client = MagicMock()
     request = httpx2.Request("POST", "https://example.test/v1/chat/completions")
     llm._client.chat.completions.create.side_effect = openai.RateLimitError(
@@ -56,7 +60,9 @@ def test_openai_compatible_maps_rate_limits():
 
 def test_openai_compatible_surfaces_gemini_overloaded_message():
     """Gemini's OpenAI-compatible endpoint wraps its error JSON in a list."""
-    llm = OpenAICompatibleLLM("https://example.test/v1", "key", model="m", max_tokens=100)
+    llm = OpenAICompatibleLLM(
+        "https://example.test/v1", "key", model="m", max_tokens=100, timeout=30
+    )
     llm._client = MagicMock()
     request = httpx2.Request("POST", "https://example.test/v1/chat/completions")
     body = [
@@ -71,14 +77,16 @@ def test_openai_compatible_surfaces_gemini_overloaded_message():
 
 
 def test_clients_use_a_short_timeout_and_one_retry():
-    llm = OpenAICompatibleLLM("https://example.test/v1", "key", model="m", max_tokens=100)
+    llm = OpenAICompatibleLLM(
+        "https://example.test/v1", "key", model="m", max_tokens=100, timeout=30
+    )
     assert (llm._client.timeout, llm._client.max_retries) == (30.0, 1)
     claude = AnthropicLLM("key", model="m", effort="low", max_tokens=100, timeout=12)
     assert (claude._client.timeout, claude._client.max_retries) == (12, 1)
 
 
 def test_anthropic_request_and_response():
-    llm = AnthropicLLM("key", model="claude-opus-5-5", effort="medium", max_tokens=100)
+    llm = AnthropicLLM("key", model="claude-opus-5-5", effort="medium", max_tokens=100, timeout=30)
     llm._client = MagicMock()
     llm._client.beta.messages.create.return_value = SimpleNamespace(
         content=[
@@ -98,7 +106,7 @@ def test_anthropic_request_and_response():
     assert kwargs["output_config"] == {"effort": "medium"}
     assert kwargs["fallbacks"] == "default"
     assert (result.text, result.input_tokens, result.output_tokens) == ("Answer [2]", 400, 30)
-    assert not result.refused
+    assert not result.is_refused
 
 
 def test_get_llm_picks_provider():

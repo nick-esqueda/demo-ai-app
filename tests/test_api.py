@@ -19,7 +19,7 @@ class FakeGenerator:
     def generate(self, question, chunks):
         return Answer(
             text="Declare it in the path [1].",
-            cited=[1],
+            cited_numbers=[1],
             usage=Usage(input_tokens=500, output_tokens=20),
             model="fake-model",
         )

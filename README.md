@@ -22,15 +22,19 @@ AI engineering: embeddings, vector search, prompting, and later evals, tracing, 
 | --- | --- |
 | `config.py` | All settings, from env vars or `.env` |
 | `corpora.py` | Which docs to ingest: repo, pinned ref, docs folder, public URL |
+| `git_checkout.py` | Sparse, shallow checkout of a corpus at its pinned ref |
+| `includes.py` | Inlines the code samples FastAPI pages include from other files |
 | `chunking.py` | Splits Markdown by headings, then by paragraphs to stay under ~500 tokens |
 | `embeddings.py` | `Embedder` interface plus a local sentence-transformers implementation |
 | `db.py` | Postgres connection, `chunks` table with an HNSW index, bulk writes |
 | `ingest.py` | CLI: fetch, chunk, embed, store |
 | `retrieval.py` | Embeds the question and runs the nearest-neighbour SQL query |
 | `prompts.py` | System prompt and the numbered-sources user message |
-| `llm.py` | `LLMClient` interface: any OpenAI-compatible API (Gemini, Groq, Ollama), or Claude |
+| `llm/` | `LLMClient` interface, clients for OpenAI-compatible APIs (Gemini, Groq, Ollama) and Claude, and the provider registry |
 | `generation.py` | Calls the LLM and extracts `[n]` citations from the answer |
+| `schemas.py` | Request and response bodies for the API |
 | `api.py` | FastAPI app with `POST /ask` |
+| `timing.py`, `logging_setup.py` | Small helpers for timing steps and setting up logs |
 
 ## Run it
 
@@ -72,7 +76,7 @@ prompt, with `cited: true` on the ones the answer used), and token `usage`.
 
 ## Choosing the LLM
 
-Generation goes through `LLMClient` in `llm.py`. Switch providers with env vars, no code changes:
+Generation goes through `LLMClient` in `llm/base.py`. Switch providers with env vars, no code changes:
 
 | Provider | Cost | Settings |
 | --- | --- | --- |
@@ -121,6 +125,10 @@ the throwaway database that Docker Compose creates:
 ```bash
 TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/docs_qa_test uv run pytest
 ```
+
+## Code style
+
+All code follows [docs/CODE_STYLE.md](docs/CODE_STYLE.md).
 
 ## Notes
 
