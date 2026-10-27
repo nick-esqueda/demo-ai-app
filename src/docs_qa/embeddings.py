@@ -39,7 +39,7 @@ class SentenceTransformerEmbedder:
 
     @property
     def dimension(self) -> int:
-        return self._model.get_sentence_embedding_dimension()
+        return self._model.get_embedding_dimension()
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         vectors = self._model.encode(

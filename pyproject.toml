@@ -22,7 +22,7 @@ docs-qa-ingest = "docs_qa.ingest:main"
 [dependency-groups]
 dev = [
     "pytest>=8.0",
-    "httpx>=0.27",
+    "httpx2>=2.0",
     "ruff>=0.6",
 ]
 

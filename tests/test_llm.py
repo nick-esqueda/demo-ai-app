@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import httpx
+import httpx2
 import openai
 import pytest
 
@@ -32,7 +32,7 @@ def test_openai_compatible_request_and_response():
 
     kwargs = llm._client.chat.completions.create.call_args.kwargs
     assert kwargs["model"] == "gemini-x"
-    assert kwargs["max_tokens"] == 100
+    assert kwargs["max_completion_tokens"] == 100
     assert kwargs["messages"] == [
         {"role": "system", "content": "system text"},
         {"role": "user", "content": "user text"},
@@ -45,9 +45,9 @@ def test_openai_compatible_request_and_response():
 def test_openai_compatible_maps_rate_limits():
     llm = OpenAICompatibleLLM("https://example.test/v1", None, model="m", max_tokens=100)
     llm._client = MagicMock()
-    request = httpx.Request("POST", "https://example.test/v1/chat/completions")
+    request = httpx2.Request("POST", "https://example.test/v1/chat/completions")
     llm._client.chat.completions.create.side_effect = openai.RateLimitError(
-        "quota exceeded", response=httpx.Response(429, request=request), body=None
+        "quota exceeded", response=httpx2.Response(429, request=request), body=None
     )
 
     with pytest.raises(LLMRateLimitError):
@@ -58,12 +58,12 @@ def test_openai_compatible_surfaces_gemini_overloaded_message():
     """Gemini's OpenAI-compatible endpoint wraps its error JSON in a list."""
     llm = OpenAICompatibleLLM("https://example.test/v1", "key", model="m", max_tokens=100)
     llm._client = MagicMock()
-    request = httpx.Request("POST", "https://example.test/v1/chat/completions")
+    request = httpx2.Request("POST", "https://example.test/v1/chat/completions")
     body = [
         {"error": {"code": 503, "message": "The model is overloaded.", "status": "UNAVAILABLE"}}
     ]
     llm._client.chat.completions.create.side_effect = openai.InternalServerError(
-        "Error code: 503", response=httpx.Response(503, request=request), body=body
+        "Error code: 503", response=httpx2.Response(503, request=request), body=body
     )
 
     with pytest.raises(LLMUnavailableError, match="The model is overloaded"):

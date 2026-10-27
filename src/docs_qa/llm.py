@@ -91,7 +91,8 @@ class OpenAICompatibleLLM:
         try:
             response = self._client.chat.completions.create(
                 model=self._model,
-                max_tokens=self._max_tokens,
+                # The newer name for max_tokens, which the OpenAI SDK marks as deprecated.
+                max_completion_tokens=self._max_tokens,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
